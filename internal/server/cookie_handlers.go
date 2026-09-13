@@ -159,10 +159,12 @@ type cookieStatusRequest struct {
 	Enabled bool `json:"enabled"`
 }
 
-// cookieAutoConfirmRequest 是更新自动确认发货开关的 HTTP 请求 DTO。
+// cookieAutoConfirmRequest 是更新自动发货/自动确认发货开关的 HTTP 请求 DTO。
 type cookieAutoConfirmRequest struct {
-	// AutoConfirm 表示是否允许系统自动确认发货。
+	// AutoConfirm 表示是否允许系统自动发货（付款后发卡密/模板消息）。
 	AutoConfirm bool `json:"auto_confirm"`
+	// AutoConsign 表示自动发货后是否自动确认发货（转已发货）。
+	AutoConsign *bool `json:"auto_consign"`
 }
 
 // cookieRemarkRequest 是更新账号备注的 HTTP 请求 DTO。
@@ -290,6 +292,7 @@ func (s *Server) listCookieDetails(w http.ResponseWriter, r *http.Request) {
 			HasCookie:         true,
 			Enabled:           statusErr == nil && enabled,
 			AutoConfirm:       summary.AutoConfirm,
+			AutoConsign:       summary.AutoConsign,
 			Remark:            summary.Remark,
 			PauseDuration:     summary.PauseDuration,
 			PausedUntil:       summary.PausedUntil,
@@ -337,6 +340,7 @@ func (s *Server) getCookieDetails(w http.ResponseWriter, r *http.Request) {
 	enabled, statusErr := s.accountSummaryApplication().StatusOwned(r.Context(), sess.UserID, cid)
 	writeJSON(w, http.StatusOK, cookieDetailResponse{
 		ID: summary.ID, Enabled: statusErr == nil && enabled, AutoConfirm: summary.AutoConfirm,
+		AutoConsign: summary.AutoConsign,
 		Remark: summary.Remark, PauseDuration: summary.PauseDuration, PausedUntil: summary.PausedUntil,
 		Paused: summary.PausedUntil > time.Now().UTC().Unix(), ShowBrowser: summary.ShowBrowser,
 		Username: summary.Username, Nickname: cachedCookieSummaryNickname(summary), AvatarURL: summary.AvatarURL,
@@ -617,6 +621,17 @@ func (s *Server) setCookieAutoConfirm(w http.ResponseWriter, r *http.Request) {
 	}
 	// sess 是当前请求的认证会话，用于让应用服务再次确认账号归属。
 	sess := authSess(r)
+	// autoConsign 表示可选的自动确认发货（转已发货）开关更新；nil 表示保持不变。
+	if req.AutoConsign != nil {
+		if _, err := s.accountSettingsApplication().SetAutoConsign(r.Context(), sess.UserID, cid, *req.AutoConsign); err != nil {
+			if errors.Is(err, accountapp.ErrForbidden) || errors.Is(err, accountapp.ErrNotFound) {
+				writeErr(w, http.StatusForbidden, "无权操作该账号")
+				return
+			}
+			writeErr(w, http.StatusInternalServerError, "保存自动确认设置失败")
+			return
+		}
+	}
 	if // err 保存应用层自动确认设置错误。
 	_, err := s.accountSettingsApplication().SetAutoConfirm(r.Context(), sess.UserID, cid, req.AutoConfirm); err != nil {
 		if errors.Is(err, accountapp.ErrForbidden) || errors.Is(err, accountapp.ErrNotFound) {
@@ -638,7 +653,7 @@ func (s *Server) getCookieAutoConfirm(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	writeJSON(w, http.StatusOK, autoConfirmResponse{AutoConfirm: d.AutoConfirm})
+	writeJSON(w, http.StatusOK, autoConfirmResponse{AutoConfirm: d.AutoConfirm, AutoConsign: d.AutoConsign})
 }
 
 // setCookieRemark 设置备注。
