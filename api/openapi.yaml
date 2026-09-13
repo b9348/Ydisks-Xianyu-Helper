@@ -8119,6 +8119,8 @@ components:
           type: string
         auto_confirm:
           type: boolean
+        auto_consign:
+          type: boolean
         pause_duration:
           type: integer
           minimum: 0

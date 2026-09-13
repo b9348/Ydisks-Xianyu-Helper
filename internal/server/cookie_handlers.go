@@ -115,6 +115,7 @@ type updateCookieSettingsRequest struct {
 	Cookie        *string  `json:"cookie"`
 	Remark        *string  `json:"remark"`
 	AutoConfirm   *bool    `json:"auto_confirm"`
+	AutoConsign   *bool    `json:"auto_consign"`
 	PauseDuration *int     `json:"pause_duration"`
 	Username      *string  `json:"username"`
 	LoginPassword *string  `json:"login_password"`
@@ -225,7 +226,7 @@ func (s *Server) updateCookieSettings(w http.ResponseWriter, r *http.Request) {
 	// settingsResult、err 保存应用服务返回的暂停截止时间、补偿错误和主写入错误。
 	settingsResult, err := s.accountSettingsApplication().UpdateSettings(r.Context(), accountapp.SettingsUpdateInput{
 		UserID: ownedDetail.UserID, AccountID: cid, Cookie: req.Cookie, Remark: req.Remark,
-		AutoConfirm: req.AutoConfirm, PauseDuration: req.PauseDuration, Username: req.Username,
+		AutoConfirm: req.AutoConfirm, AutoConsign: req.AutoConsign, PauseDuration: req.PauseDuration, Username: req.Username,
 		Password: password, ShowBrowser: req.ShowBrowser, ChannelIDs: req.ChannelIDs,
 	})
 	if err != nil {
